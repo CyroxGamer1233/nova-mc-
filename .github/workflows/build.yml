@@ -11,7 +11,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout NovaMC
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Java 21
@@ -24,40 +24,34 @@ jobs:
       - name: Build NovaMC
         run: mvn clean package
 
-      - name: Find NovaMC JAR
+      - name: Create app directory
         shell: powershell
         run: |
-          Get-ChildItem -Path target -Filter *.jar |
-            Where-Object { $_.Name -notlike "original-*" } |
-            Select-Object FullName
+          New-Item -ItemType Directory -Force -Path app
+
+          Copy-Item target\NovaMC-1.0.0.jar app\NovaMC.jar
 
       - name: Create Windows EXE
         shell: powershell
         run: |
-          $jar = Get-ChildItem -Path target -Filter *.jar |
-            Where-Object { $_.Name -notlike "original-*" } |
-            Select-Object -First 1
-
-          if (-not $jar) {
-            Write-Error "NovaMC JAR not found!"
-            exit 1
-          }
+          New-Item -ItemType Directory -Force -Path dist
 
           jpackage `
             --type exe `
             --name NovaMC `
-            --input target `
-            --main-jar $jar.Name `
+            --input app `
+            --main-jar NovaMC.jar `
             --main-class com.novamc.Main `
             --dest dist `
             --app-version 1.0.0 `
             --vendor "NovaMC" `
             --win-shortcut `
-            --win-menu
+            --win-menu `
+            --win-dir-chooser `
+            --verbose
 
-      - name: Upload NovaMC EXE
+      - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
           name: NovaMC-Windows
-          path: dist/*.exe
-          
+          path: dist\*.exe
