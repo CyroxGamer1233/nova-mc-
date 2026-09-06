@@ -1,4 +1,4 @@
-name: Build NovaMC
+name: Build NovaMC Windows
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-windows:
+    runs-on: windows-latest
 
     steps:
       - name: Checkout NovaMC
@@ -21,12 +21,43 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build with Maven
+      - name: Build NovaMC
         run: mvn clean package
 
-      - name: Upload NovaMC JAR
+      - name: Find NovaMC JAR
+        shell: powershell
+        run: |
+          Get-ChildItem -Path target -Filter *.jar |
+            Where-Object { $_.Name -notlike "original-*" } |
+            Select-Object FullName
+
+      - name: Create Windows EXE
+        shell: powershell
+        run: |
+          $jar = Get-ChildItem -Path target -Filter *.jar |
+            Where-Object { $_.Name -notlike "original-*" } |
+            Select-Object -First 1
+
+          if (-not $jar) {
+            Write-Error "NovaMC JAR not found!"
+            exit 1
+          }
+
+          jpackage `
+            --type exe `
+            --name NovaMC `
+            --input target `
+            --main-jar $jar.Name `
+            --main-class com.novamc.Main `
+            --dest dist `
+            --app-version 1.0.0 `
+            --vendor "NovaMC" `
+            --win-shortcut `
+            --win-menu
+
+      - name: Upload NovaMC EXE
         uses: actions/upload-artifact@v4
         with:
-          name: NovaMC
-          path: target/*.jar
+          name: NovaMC-Windows
+          path: dist/*.exe
           
